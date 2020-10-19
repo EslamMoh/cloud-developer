@@ -9,10 +9,18 @@ import {filterImageFromURL, deleteLocalFiles} from './util/util';
 
   // Set the network port
   const port = process.env.PORT || 8082;
-  
+
   // Use the body parser middleware for post requests
   app.use(bodyParser.json());
 
+  app.get( "/filteredimage", async ( req, res ) => {
+    let image_url = req.query.image_url
+    let result = await filterImageFromURL(image_url)
+    res.sendFile(result)
+    setTimeout(function() {
+      deleteLocalFiles([result]);
+    }, 2000);
+  });
   // @TODO1 IMPLEMENT A RESTFUL ENDPOINT
   // GET /filteredimage?image_url={{URL}}
   // endpoint to filter an image from a public url.
@@ -30,13 +38,13 @@ import {filterImageFromURL, deleteLocalFiles} from './util/util';
   /**************************************************************************** */
 
   //! END @TODO1
-  
+
   // Root Endpoint
   // Displays a simple message to the user
   app.get( "/", async ( req, res ) => {
     res.send("try GET /filteredimage?image_url={{}}")
   } );
-  
+
 
   // Start the Server
   app.listen( port, () => {
