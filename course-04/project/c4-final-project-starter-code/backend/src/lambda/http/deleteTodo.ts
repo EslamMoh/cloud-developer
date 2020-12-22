@@ -1,10 +1,7 @@
 import { APIGatewayProxyHandler, APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
 import 'source-map-support/register'
-import * as AWS  from 'aws-sdk'
-import { parseUserId } from '../../auth/utils'
-
-const docClient = new AWS.DynamoDB.DocumentClient()
-const todosTable = process.env.TODOS_TABLE
+import { deleteTodo } from '../../businessLogic/todos'
+import { getTodo } from '../../businessLogic/todos'
 
 export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   console.log('Processing event: ', event)
@@ -12,8 +9,7 @@ export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEven
   const authorization = event.headers.Authorization
   const split = authorization.split(' ')
   const jwtToken = split[1]
-  const userId = parseUserId(jwtToken)
-  const validTodoId = await todoExists(todoId, userId)
+  const validTodoId = await getTodo(todoId, jwtToken)
 
   if (!validTodoId) {
     return {
@@ -24,15 +20,7 @@ export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEven
     }
   }
 
-  const item = await docClient.delete({
-    TableName: todosTable,
-    Key: {
-      todoId: todoId,
-      userId: userId
-    }}).promise()
-    .then(data => console.log(data.Attributes))
-    .catch(console.error)
-
+  const item = await deleteTodo(todoId, jwtToken)
   return {
     statusCode: 200,
     headers: {
@@ -41,18 +29,4 @@ export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEven
     },
     body: JSON.stringify({ item })
   }
-}
-async function todoExists(todoId: string, userId: string) {
-  const result = await docClient
-    .get({
-      TableName: todosTable,
-      Key: {
-        todoId: todoId,
-        userId: userId
-      }
-    })
-    .promise()
-
-  console.log('Get todo: ', result)
-  return !!result.Item
 }

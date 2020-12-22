@@ -1,12 +1,9 @@
 import { APIGatewayProxyHandler, APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
 import 'source-map-support/register'
-import * as AWS  from 'aws-sdk'
-import { parseUserId } from '../../auth/utils'
+import { updateTodo } from '../../businessLogic/todos'
+import { getTodo } from '../../businessLogic/todos'
 
 import { UpdateTodoRequest } from '../../requests/UpdateTodoRequest'
-
-const docClient = new AWS.DynamoDB.DocumentClient()
-const todosTable = process.env.TODOS_TABLE
 
 export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   console.log('Processing event: ', event)
@@ -14,8 +11,7 @@ export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEven
   const authorization = event.headers.Authorization
   const split = authorization.split(' ')
   const jwtToken = split[1]
-  const userId = parseUserId(jwtToken)
-  const validTodoId = await todoExists(todoId, userId)
+  const validTodoId = await getTodo(todoId, jwtToken)
 
   if (!validTodoId) {
     return {
@@ -27,23 +23,7 @@ export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEven
   }
   const updatedTodo: UpdateTodoRequest = JSON.parse(event.body)
 
-  const item = await docClient.update({
-    TableName: todosTable,
-    Key: {
-      todoId: todoId,
-      userId: userId
-    },
-    ExpressionAttributeNames: {"#name": "name"},
-    UpdateExpression: "set #name = :name, dueDate = :dueDate, done = :done",
-    ExpressionAttributeValues: {
-      ":name": updatedTodo.name,
-      ":dueDate": updatedTodo.dueDate,
-      ":done": updatedTodo.done
-    },
-    ReturnValues: "UPDATED_NEW"
-  }).promise()
-    .then(data => console.log(data.Attributes))
-    .catch(console.error)
+  const item = await updateTodo(updatedTodo, jwtToken, todoId)
 
   return {
     statusCode: 200,
@@ -53,18 +33,4 @@ export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEven
     },
     body: JSON.stringify({ item })
   }
-}
-async function todoExists(todoId: string, userId: string) {
-  const result = await docClient
-    .get({
-      TableName: todosTable,
-      Key: {
-        todoId: todoId,
-        userId: userId
-      }
-    })
-    .promise()
-
-  console.log('Get todo: ', result)
-  return !!result.Item
 }
