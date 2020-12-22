@@ -5,9 +5,15 @@ import { cors } from 'middy/middlewares'
 import { getTodo } from '../../businessLogic/todos'
 import { updateTodoAttachement } from '../../businessLogic/todos'
 import { getUploadUrl } from '../../businessLogic/todos'
+import { createLogger } from '../../utils/logger'
+
+const logger = createLogger('generateUploadUrl')
 
 export const handler = middy(async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-  console.log('Caller event', event)
+  logger.info('Processing event:', {
+    event: event
+  })
+
   const todoId = event.pathParameters.todoId
   const authorization = event.headers.Authorization
   const split = authorization.split(' ')

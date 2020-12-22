@@ -2,11 +2,16 @@ import { APIGatewayProxyHandler, APIGatewayProxyEvent, APIGatewayProxyResult } f
 import 'source-map-support/register'
 import { updateTodo } from '../../businessLogic/todos'
 import { getTodo } from '../../businessLogic/todos'
-
 import { UpdateTodoRequest } from '../../requests/UpdateTodoRequest'
+import { createLogger } from '../../utils/logger'
+
+const logger = createLogger('updateTodo')
 
 export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-  console.log('Processing event: ', event)
+  logger.info('Processing event:', {
+    event: event
+  })
+
   const todoId = event.pathParameters.todoId
   const authorization = event.headers.Authorization
   const split = authorization.split(' ')

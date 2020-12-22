@@ -2,20 +2,25 @@ import * as AWS  from 'aws-sdk'
 import { DocumentClient } from 'aws-sdk/clients/dynamodb'
 import { TodoItem } from '../models/TodoItem'
 import { TodoUpdate } from '../models/TodoUpdate'
+import * as AWSXRay from 'aws-xray-sdk'
+import { createLogger } from '../utils/logger'
+
+const logger = createLogger('todosAccess')
+const XAWS = AWSXRay.captureAWS(AWS)
 
 export class TodoAccess {
 
   constructor(
-    private readonly docClient: DocumentClient = new AWS.DynamoDB.DocumentClient(),
+    private readonly docClient: DocumentClient = new XAWS.DynamoDB.DocumentClient(),
     private readonly todosTable = process.env.TODOS_TABLE,
     private readonly todoIndex = process.env.INDEX_NAME,
-    private readonly s3 = new AWS.S3({signatureVersion: 'v4'}),
+    private readonly s3 = new XAWS.S3({signatureVersion: 'v4'}),
     private readonly bucketName = process.env.IMAGES_S3_BUCKET,
     private readonly urlExpiration = 300) {
   }
 
   async getAllTodos(userId: string): Promise<TodoItem[]> {
-    console.log('Getting all todos')
+    logger.info('Getting all todos')
 
     const result = await this.docClient.query({
       TableName: this.todosTable,
@@ -35,6 +40,8 @@ export class TodoAccess {
   }
 
   async createTodo(todo: TodoItem): Promise<TodoItem> {
+    logger.info('creating a todo')
+
     await this.docClient.put({
       TableName: this.todosTable,
       Item: todo
@@ -50,8 +57,8 @@ export class TodoAccess {
         todoId: todoId,
         userId: userId
       }}).promise()
-      .then(data => console.log(data.Attributes))
-      .catch(console.error)
+
+    logger.info('deleting a todo', { result: todo })
 
     return todo
   }
@@ -67,7 +74,7 @@ export class TodoAccess {
     })
     .promise()
 
-    console.log('Get todo: ', result)
+    logger.info('Get todo', { result: result })
     return !!result.Item
   }
 
@@ -87,14 +94,14 @@ export class TodoAccess {
       },
       ReturnValues: "UPDATED_NEW"
     }).promise()
-      .then(data => console.log(data.Attributes))
-      .catch(console.error)
+
+    logger.info('updating a todo', { result: updatedTodo })
 
     return updatedTodo
   }
 
   async updateTodoAttachement(todoId: string, userId: string) {
-    await this.docClient.update({
+    const todoAttchement = await this.docClient.update({
       TableName: this.todosTable,
       Key: {
         todoId: todoId,
@@ -106,11 +113,13 @@ export class TodoAccess {
       },
       ReturnValues: "UPDATED_NEW"
     }).promise()
-      .then(data => console.log(data.Attributes))
-      .catch(console.error)
+
+    logger.info('updating a todo', { result: todoAttchement })
   }
 
   async getUploadUrl(todoId: string) {
+    logger.info('getting uploadUrl')
+
     return this.s3.getSignedUrl('putObject', {
       Bucket: this.bucketName,
       Key: todoId,
