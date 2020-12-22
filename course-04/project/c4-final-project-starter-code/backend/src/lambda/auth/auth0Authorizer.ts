@@ -79,12 +79,12 @@ const getSigningKey = async (jwkurl, kid) => {
       'Access-Control-Allow-Credentials': true,
     }
   });
+
   let keys  = res.data.keys;
-  // since the keys is an array its possible to have many keys in case of cycling.
-  const signingKeys = keys.filter(key => key.use === 'sig' // JWK property `use` determines the JWK is for signing
-      && key.kty === 'RSA' // We are only supporting RSA
-      && key.kid           // The `kid` must be present to be useful for later
-      && key.x5c && key.x5c.length // Has useful public keys (we aren't using n or e)
+  const signingKeys = keys.filter(key => key.use === 'sig'
+      && key.kty === 'RSA'
+      && key.kid
+      && key.x5c && key.x5c.length
     ).map(key => {
       return { kid: key.kid, nbf: key.nbf, publicKey: certToPEM(key.x5c[0]) };
     });
@@ -95,6 +95,7 @@ const getSigningKey = async (jwkurl, kid) => {
   logger.info("Signing keys created successfully ", signingKey)
   return signingKey
 };
+
 function certToPEM(cert) {
   cert = cert.match(/.{1,64}/g).join('\n');
   cert = `-----BEGIN CERTIFICATE-----\n${cert}\n-----END CERTIFICATE-----\n`;
